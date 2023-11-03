@@ -574,3 +574,12 @@ cp /usr/lib/i386-linux-gnu/libstdc++.so.6.0.30 /usr/local/google/home/{user}/min
 rm /usr/local/google/home/{user}/miniconda3/envs/tpugraphs/lib/libstdc++.so.6
 sudo ln -sf /usr/local/google/home/mangpo/miniconda3/envs/tpugraphs/lib/libstdc++.so.6.0.30 /usr/local/google/home/mangpo/miniconda3/envs/tpugraphs/lib/libstdc++.so.6
 ```
+### installing bazel
+
+https://bazel.build/install/ubuntu
+
+### Notes
+
+This post was made by the current winning team. It looks like they are also making use of this github repo.
+
+https://www.kaggle.com/competitions/predict-ai-model-runtime/discussion/448402

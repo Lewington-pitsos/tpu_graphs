@@ -23,3 +23,10 @@ poetry.lock
 
 # PyCharm
 .idea
+
+bazel-*
+pad.py
+graph_features.so
+data
+
+**/.ipynb_checkpoints
