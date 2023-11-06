@@ -98,7 +98,6 @@ def custom_collate_fn(batch):
 
 
     node_feat_padded = pad_sequence(node_feat_list)
-    node_feat_padded = None
 
     return config_feat, node_feat_padded, config_runtime, file_idxs, trial_idxs
 

@@ -6,6 +6,28 @@ from .pt_loader import *
 from .score import speed_score
 
 
+def test_loads_batch():
+  random.seed(42)
+  torch.manual_seed(0)
+  filenames = get_files('tile', 'valid')
+
+
+  dataset = LayoutDataset(filenames=filenames)
+  sampler = BufferedRandomSampler(len(dataset))
+  bs = 64
+  dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, collate_fn=custom_collate_fn, sampler=sampler)
+
+  config_feat, node_feat, config_runtime, file_idx, trial_idx = next(iter(dataloader))
+
+  assert config_feat.shape == (bs, 24)
+  assert node_feat.shape == (bs, 27, 141)
+
+  for i in range(30):
+    config_feat, node_feat, config_runtime, file_idx, trial_idx = next(iter(dataloader))
+
+  assert config_feat.shape == (bs, 24)
+  assert node_feat.shape == (bs, 52, 141)
+
 def test_pt_loader():
   random.seed(42)
   torch.manual_seed(0)
