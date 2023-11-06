@@ -53,38 +53,41 @@ class LayoutDataset(Dataset):
         return self.get_trial_data(self.current_file_data, file_idx, trial_idx)
 
     def get_trial_data(self, file_data, file_idx, trial_idx):
-        config_feat = torch.from_numpy(file_data['config_feat'][trial_idx])
-        node_feat = torch.from_numpy(file_data['node_feat'])
-        node_opcode = torch.from_numpy(file_data['node_opcode'])
-        config_runtime = torch.tensor([file_data['config_runtime'][trial_idx] / file_data['config_runtime_normalizers'][trial_idx]])
+        config_feat = file_data['config_feat'][trial_idx]
+        node_feat = file_data['node_feat']
+        node_opcode = file_data['node_opcode']
+        config_runtime = [file_data['config_runtime'][trial_idx] / file_data['config_runtime_normalizers'][trial_idx]]
 
-        node_feat = torch.concat([node_feat, node_opcode.unsqueeze(1)], axis=1)
+        node_feat = np.concatenate([node_feat, node_opcode.reshape(-1, 1)], axis=1)
 
-        return config_feat, node_feat, config_runtime, torch.tensor([file_idx]), torch.tensor([trial_idx])
+        return config_feat, node_feat, config_runtime, file_idx, trial_idx
 
+def pad_sequence(sequences, padding_value=-1):
+    # Convert the list of numpy arrays to a list of tensors
+    sequences = [torch.tensor(s) for s in sequences]
 
+    # Use the PyTorch pad_sequence function to pad all tensors to the maximum length
+    padded_batch = torch.nn.utils.rnn.pad_sequence(sequences, batch_first=True, padding_value=padding_value)
 
-def pad_sequence(sequences, batch_first=True, padding_value=-1):
-    max_len = max([s.size(0) for s in sequences])
-    batch_size = len(sequences)
-    max_size = sequences[0].size(1)
-    padded_batch = torch.full((batch_size, max_len, max_size), padding_value)
-    for i, sequence in enumerate(sequences):
-        length = sequence.size(0)
-        padded_batch[i, :length] = sequence
     return padded_batch
 
+# Example usage:
+# sequences = [np.random.randn(10, 5), np.random.randn(8, 5), np.random.randn(12, 5)]
+# padded_sequences = pad_sequence_efficient(sequences)
+
+
 def custom_collate_fn(batch):
-    config_feat_list, node_feat_list, config_runtime_list, file_idx, trial_idx = zip(*batch)
+    config_feat_list, node_feat_list, config_runtime_list, file_idx_list, trial_idx_list = zip(*batch)
 
-    config_feat = torch.stack(config_feat_list)
-    config_runtime = torch.stack(config_runtime_list)
-    file_idxs = torch.stack(file_idx)
-    trial_idxs = torch.stack(trial_idx)
+    config_feat = torch.tensor(np.array(config_feat_list))
+    config_runtime = torch.tensor(config_runtime_list)
+    file_idxs = torch.tensor(file_idx_list)
+    trial_idxs = torch.tensor(trial_idx_list)
 
 
 
-    node_feat_padded = pad_sequence(node_feat_list, batch_first=True)
+    node_feat_padded = pad_sequence(node_feat_list)
+    node_feat_padded = None
 
     return config_feat, node_feat_padded, config_runtime, file_idxs, trial_idxs
 
