@@ -15,7 +15,6 @@ class FeatureConv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-
 class OneDModel(nn.modules.Module):
     def __init__(self, num_features):
         super(OneDModel, self).__init__()
@@ -23,31 +22,37 @@ class OneDModel(nn.modules.Module):
         self.conv2 = FeatureConv(in_channels=128, out_channels=128, kernel_width=5, stride_width=1)
         self.conv3 = FeatureConv(in_channels=128, out_channels=128, kernel_width=5, stride_width=1)
 
-        self.fc1 = nn.Linear(128, 128)
+        self.fc1 = nn.Linear(152, 128)
         self.fc2 = nn.Linear(128, 1)
 
         self.relu = nn.ReLU()
 
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.relu(x)
+    def forward(self, node_feat, config_feat):
+        node_feat = node_feat.permute(0, 2, 1)
 
-        x = self.conv2(x)
-        x = self.relu(x)
+        node_feat = self.conv1(node_feat)
+        node_feat = self.relu(node_feat)
 
-        x = self.conv3(x)
-        x = self.relu(x)
+        node_feat = self.conv2(node_feat)
+        node_feat = self.relu(node_feat)
 
-        x = torch.mean(x, dim=2)
-        x = self.relu(self.fc1(x))
-        x = self.fc2(x)
+        node_feat = self.conv3(node_feat)
+        node_feat = self.relu(node_feat)
 
-        return x
+        node_feat = torch.mean(node_feat, dim=2)
+        combined = torch.concat([node_feat, config_feat], dim=1)
 
-model = OneDModel(num_features=141)
+        combined = self.relu(self.fc1(combined))
+        combined = self.fc2(combined)
 
-input_tensor = torch.randn(2, 141, 27)
+        return combined
 
-output = model(input_tensor)
+if __name__ == '__main__':
+    model = OneDModel(num_features=141)
 
-print(output)
+    input_tensor = torch.randn(2, 27, 141)
+    config_feat = torch.randn(2, 24)
+
+    output = model(input_tensor, config_feat)
+
+    print(output)

@@ -3,7 +3,12 @@ import random
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from .constants import *
+
+TILE_DIR = 'data/npz_all/npz/tile/xla/'
+TRAIN_DIR = TILE_DIR + 'train/'
+VALID_DIR = TILE_DIR + 'valid/'
+TEST_DIR = TILE_DIR + 'test/'
+
 
 def get_files(collection, split):
     if collection == 'tile':
@@ -73,7 +78,38 @@ class LayoutDataset(Dataset):
 
         return config_feat, node_feat, config_runtime, file_idx, trial_idx
 
-def pad_sequence(sequences, padding_value=-1):
+
+# tile valid
+# Config Features Mean: 17.3280029296875, Standard Deviation: 82.76725006103516
+# Node Features Mean: 19.088706970214844, Standard Deviation: 368.8953552246094
+# Config Runtime Mean: 5.287334825787326, Standard Deviation: 8.122184066667144
+
+# tile train
+# Config Features Mean: 16.741966247558594, Standard Deviation: 74.34544372558594
+# Node Features Mean: 14.231035232543945, Standard Deviation: 305.2548828125
+# Config Runtime Mean: 4.980834250716549, Standard Deviation: 8.203627220003426
+
+def layout_normalize(
+        config_feat,
+        node_feat,
+        config_runtime,
+        config_feat_mean=16.741966247558594,
+        config_feat_std=74.34544372558594,
+        node_feat_mean=14.231035232543945,
+        node_feat_std=305.2548828125,
+        config_runtime_mean=4.980834250716549,
+        config_runtime_std=8.203627220003426
+    ):
+
+    mask = node_feat >= 0
+    node_feat  = torch.sqrt(node_feat * mask)
+
+    config_feat = (config_feat - config_feat_mean) / config_feat_std
+    node_feat = (node_feat - node_feat_mean) / node_feat_std
+    config_runtime = (config_runtime - config_runtime_mean) / config_runtime_std
+    return config_feat, node_feat, config_runtime
+
+def pad_sequence(sequences, padding_value=0):
     # Convert the list of numpy arrays to a list of tensors
     sequences = [torch.tensor(s) for s in sequences]
 
@@ -95,9 +131,9 @@ def custom_collate_fn(batch):
     file_idxs = torch.tensor(file_idx_list)
     trial_idxs = torch.tensor(trial_idx_list)
 
-
-
     node_feat_padded = pad_sequence(node_feat_list)
+
+    config_feat, node_feat_padded, config_runtime = layout_normalize(config_feat, node_feat_padded, config_runtime)
 
     return config_feat, node_feat_padded, config_runtime, file_idxs, trial_idxs
 
