@@ -30,3 +30,4 @@ graph_features.so
 data
 
 **/.ipynb_checkpoints
+wandb

@@ -39,7 +39,7 @@ class LayoutDataset(Dataset):
         return trials_per_file
 
     def load_new_file(self, file_idx):
-        if len(self.open_file_indices) >= 50:
+        if len(self.open_file_indices) >= 150:
           self.open_file_indices.pop(0)
           self.open_files.pop(0)
 
@@ -142,14 +142,22 @@ class BufferedRandomSampler:
         self.data_source_length = data_source_length
         self.buffer_size = buffer_size
         self.buffer = []
-        self.index_iter = iter(range(data_source_length))
+        # Start with a fresh iterator
+        self.index_iter = self._get_new_iterator()
+
+    def _get_new_iterator(self):
+        # Create a new iterator over the data source length
+        return iter(range(self.data_source_length))
 
     def fill_buffer(self):
         try:
             while len(self.buffer) < self.buffer_size:
                 self.buffer.append(next(self.index_iter))
         except StopIteration:
-            pass
+            # If StopIteration is called, it means the epoch ended
+            # Reset the iterator and buffer for the next epoch
+            self.index_iter = self._get_new_iterator()
+            self.buffer = []
 
     def __iter__(self):
         return self
@@ -160,5 +168,8 @@ class BufferedRandomSampler:
             random.shuffle(self.buffer)
             if not self.buffer:
                 raise StopIteration
-
         return self.buffer.pop()
+
+    def __len__(self):
+        # If you want to use len(sampler), it should return the number of samples
+        return self.data_source_length
