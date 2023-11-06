@@ -5,19 +5,52 @@ from torch.utils.data import DataLoader
 from .pt_loader import *
 from .score import speed_score
 
-filenames = get_files('tile', 'valid')
+
+def test_pt_loader():
+  random.seed(42)
+  torch.manual_seed(0)
+  filenames = get_files('tile', 'valid')
 
 
-dataset = LayoutDataset(filenames=filenames)
-sampler = BufferedRandomSampler(len(dataset))
-dataloader = DataLoader(dataset, batch_size=64, shuffle=False, collate_fn=custom_collate_fn)
+  dataset = LayoutDataset(filenames=filenames)
+  sampler = BufferedRandomSampler(len(dataset))
+  bs = 64
+  dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, collate_fn=custom_collate_fn, sampler=sampler)
 
 
-start = time.time()
-preds = defaultdict(list)
-for i, data in enumerate(dataloader):
-    # if i > 5000:
-    #     break
-    pass
+  start = time.time()
+  all_preds = defaultdict(list)
+  def random_model(node_feat, config_feat, batch_size):
+      return torch.rand(batch_size)
 
-print(time.time() - start)
+
+  for i, data in enumerate(dataloader):
+      config_feat, node_feat, config_runtime, file_idx, trial_idx = data
+
+      current_batch_size = trial_idx.shape[0]
+
+      preds = random_model(node_feat, config_feat, current_batch_size)
+
+      for j in range(current_batch_size):
+        all_preds[file_idx[j].item()].append({'runtime': config_runtime[j].item(), 'pred': preds[j].item()})
+
+      if i > 0 and  i % 300 == 0:
+          break
+
+  scores = []
+  for file in all_preds.values():
+      file = sorted(file, key=lambda x: x['runtime'])
+      for i, f in enumerate(file):
+          f['index'] = i
+
+      file = sorted(file, key=lambda x: x['pred'])
+      indices = np.array([f['index'] for f in file])
+      runtimes = np.array([f['runtime'] for f in file])
+
+
+      scores.append(speed_score(runtimes, indices, 3))
+
+  assert np.mean(scores) == 0.23932865279858218
+
+if __name__ == '__main__':
+  test_pt_loader()

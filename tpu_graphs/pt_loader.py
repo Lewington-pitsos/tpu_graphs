@@ -21,9 +21,10 @@ class LayoutDataset(Dataset):
     def __init__(self, filenames):
         self.filenames = filenames
         self.current_file_data = None
-        self.current_file_idx = -1
         self.trials_per_file = self.precompute_trials_per_file()
         self.cumulative_trials = np.cumsum(self.trials_per_file)
+        self.open_file_indices = []
+        self.open_files = []
 
     def precompute_trials_per_file(self):
         trials_per_file = []
@@ -32,10 +33,19 @@ class LayoutDataset(Dataset):
                 trials_per_file.append(len(data['config_runtime']))
         return trials_per_file
 
-    def load_file(self, filename):
-        if self.current_file_data is not None:
-            del self.current_file_data  # Close current file data if any
+    def load_new_file(self, file_idx):
+        if len(self.open_file_indices) >= 50:
+          self.open_file_indices.pop(0)
+          self.open_files.pop(0)
+
+        filename = self.filenames[file_idx]
+
         self.current_file_data = dict(np.load(filename, allow_pickle=True))
+        self.open_file_indices.append(file_idx)
+        self.open_files.append(self.current_file_data)
+
+        self.current_file_data = self.open_files[-1]
+
 
     def __len__(self):
         return self.cumulative_trials[-1]
@@ -45,9 +55,10 @@ class LayoutDataset(Dataset):
             raise IndexError("Index out of range")
 
         file_idx = np.searchsorted(self.cumulative_trials, idx, side='right')
-        if file_idx != self.current_file_idx:
-            self.load_file(self.filenames[file_idx])
-            self.current_file_idx = file_idx
+        if file_idx not in self.open_file_indices:
+            self.load_new_file(file_idx)
+        else:
+            self.current_file_data = self.open_files[self.open_file_indices.index(file_idx)]
 
         trial_idx = idx - self.cumulative_trials[file_idx - 1] if file_idx > 0 else idx
         return self.get_trial_data(self.current_file_data, file_idx, trial_idx)
