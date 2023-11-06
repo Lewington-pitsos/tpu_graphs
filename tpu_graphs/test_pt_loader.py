@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 from .pt_loader import *
 from .score import speed_score
 
-
 def test_loads_batch():
   random.seed(42)
   torch.manual_seed(0)
@@ -29,10 +28,9 @@ def test_loads_batch():
   assert node_feat.shape == (bs, 52, 141)
 
 def test_pt_loader():
-  random.seed(42)
+  random.seed(0)
   torch.manual_seed(0)
   filenames = get_files('tile', 'valid')
-
 
   dataset = LayoutDataset(filenames=filenames)
   sampler = BufferedRandomSampler(len(dataset))
@@ -72,7 +70,7 @@ def test_pt_loader():
 
       scores.append(speed_score(runtimes, indices, 3))
 
-  assert np.mean(scores) == 0.23932865279858218
+  assert np.mean(scores) == 0.00966974215854273
 
 if __name__ == '__main__':
   test_pt_loader()

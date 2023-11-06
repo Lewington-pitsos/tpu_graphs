@@ -121,8 +121,8 @@ class BufferedRandomSampler:
     def __next__(self):
         if not self.buffer:
             self.fill_buffer()
+            random.shuffle(self.buffer)
             if not self.buffer:
                 raise StopIteration
 
-        random.shuffle(self.buffer)
         return self.buffer.pop()
