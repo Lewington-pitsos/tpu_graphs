@@ -9,7 +9,6 @@ TRAIN_DIR = TILE_DIR + 'train/'
 VALID_DIR = TILE_DIR + 'valid/'
 TEST_DIR = TILE_DIR + 'test/'
 
-
 def get_files(collection, split):
     if collection == 'tile':
         if split == 'train':
@@ -51,7 +50,6 @@ class LayoutDataset(Dataset):
 
         self.current_file_data = self.open_files[-1]
 
-
     def __len__(self):
         return self.cumulative_trials[-1]
 
@@ -72,11 +70,12 @@ class LayoutDataset(Dataset):
         config_feat = file_data['config_feat'][trial_idx]
         node_feat = file_data['node_feat']
         node_opcode = file_data['node_opcode']
-        config_runtime = [file_data['config_runtime'][trial_idx] / file_data['config_runtime_normalizers'][trial_idx]]
+        config_runtime = np.array([file_data['config_runtime'][trial_idx] / file_data['config_runtime_normalizers'][trial_idx]])
+        edge_index = file_data['edge_index']
 
         node_feat = np.concatenate([node_feat, node_opcode.reshape(-1, 1)], axis=1)
 
-        return config_feat, node_feat, config_runtime, file_idx, trial_idx
+        return config_feat, node_feat, config_runtime, edge_index, file_idx, trial_idx
 
 
 # tile valid
@@ -124,18 +123,19 @@ def pad_sequence(sequences, padding_value=0):
 
 
 def custom_collate_fn(batch):
-    config_feat_list, node_feat_list, config_runtime_list, file_idx_list, trial_idx_list = zip(*batch)
+    config_feat_list, node_feat_list, config_runtime_list, edge_idx_list, file_idx_list, trial_idx_list = zip(*batch)
 
     config_feat = torch.tensor(np.array(config_feat_list))
     config_runtime = torch.tensor(config_runtime_list)
     file_idxs = torch.tensor(file_idx_list)
     trial_idxs = torch.tensor(trial_idx_list)
+    edge_idxs = torch.tensor(edge_idx_list)
 
     node_feat_padded = pad_sequence(node_feat_list)
 
     config_feat, node_feat_padded, config_runtime = layout_normalize(config_feat, node_feat_padded, config_runtime)
 
-    return config_feat, node_feat_padded, config_runtime, file_idxs, trial_idxs
+    return config_feat, node_feat_padded, config_runtime, edge_idxs, file_idxs, trial_idxs
 
 class BufferedRandomSampler:
     def __init__(self, data_source_length, buffer_size=200):

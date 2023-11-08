@@ -10,19 +10,18 @@ def test_loads_batch():
   torch.manual_seed(0)
   filenames = get_files('tile', 'valid')
 
-
   dataset = LayoutDataset(filenames=filenames)
   sampler = BufferedRandomSampler(len(dataset))
   bs = 64
   dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, collate_fn=custom_collate_fn, sampler=sampler)
 
-  config_feat, node_feat, config_runtime, file_idx, trial_idx = next(iter(dataloader))
+  config_feat, node_feat, config_runtime, edge_idx, file_idx, trial_idx = next(iter(dataloader))
 
   assert config_feat.shape == (bs, 24)
   assert node_feat.shape == (bs, 27, 141)
 
   for i in range(30):
-    config_feat, node_feat, config_runtime, file_idx, trial_idx = next(iter(dataloader))
+    config_feat, node_feat, config_runtime, edge_idx, file_idx, trial_idx = next(iter(dataloader))
 
   assert config_feat.shape == (bs, 24)
   assert node_feat.shape == (bs, 52, 141)
@@ -37,7 +36,6 @@ def test_pt_loader():
   bs = 64
   dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, collate_fn=custom_collate_fn, sampler=sampler)
 
-
   start = time.time()
   all_preds = defaultdict(list)
   def random_model(node_feat, config_feat, batch_size):
@@ -45,7 +43,7 @@ def test_pt_loader():
 
 
   for i, data in enumerate(dataloader):
-      config_feat, node_feat, config_runtime, file_idx, trial_idx = data
+      config_feat, node_feat, config_runtime, edge_idx, file_idx, trial_idx = data
 
       current_batch_size = trial_idx.shape[0]
 
