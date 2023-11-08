@@ -10,6 +10,10 @@ from transformers.pytorch_utils import apply_chunking_to_forward
 from transformers.activations import ACT2FN
 from torch_geometric.nn import GCNConv, global_mean_pool
 
+def count_parameters(model):
+    num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"The model has {num_parameters:,} trainable parameters")  # using ',' as a thousands separator
+
 
 class FeatureConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_width):
@@ -73,24 +77,82 @@ class OneDModel(nn.modules.Module):
 
         return combined
 
-class GCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels):
-        super().__init__()
-        self.conv1 = GCNConv(in_channels, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.linear = torch.nn.Linear(hidden_channels, 1)  #
 
+class SimpleModel(torch.nn.Module):
+    def __init__(self, hidden_channels, graph_feats, hidden_dim):
+        super().__init__()
+
+        op_embedding_dim = 4  # I choose 4-dimensional embedding
+        self.embedding = torch.nn.Embedding(120,  # 120 different op-codes
+                                            op_embedding_dim,
+                                           )
+        assert len(hidden_channels) > 0
+        in_channels = op_embedding_dim + 140
+        self.convs = torch.nn.ModuleList()
+        last_dim = hidden_channels[0]
+
+        # Create a sequence of Graph Convolutional Network (GCN) layers
+        self.convs.append(GCNConv(in_channels, hidden_channels[0]))
+        for i in range(len(hidden_channels) - 1):
+            self.convs.append(GCNConv(hidden_channels[i], hidden_channels[i+1]))
+            last_dim = hidden_channels[i+1]
+        self.convs.append(GCNConv(last_dim, graph_feats))
+
+        # Define a sequential dense neural network
+        self.dense = torch.nn.Sequential(nn.Linear(graph_feats + 24, 64),
+                                         nn.ReLU(),
+                                         nn.Linear(64, 64),
+                                         nn.ReLU(),
+                                         nn.Linear(64, 1),
+                                        )
+
+    def forward(self, x_cfg: Tensor, x_feat: Tensor, x_op: Tensor, edge_index: Tensor) -> Tensor:
+
+        # Get graph features
+        x = torch.cat([x_feat, self.embedding(x_op)], dim=1)
+        # Pass data through convolutional layers
+        for conv in self.convs:
+            x = conv(x, edge_index).relu()
+
+        # Get 1D graph embedding using average pooling
+        x_graph = torch.mean(x, 0)
+
+        # Combine graph data with config data
+        x = torch.cat([x_cfg, x_graph.repeat((len(x_cfg), 1))], axis=1)
+        # Pass the combined data through the dense neural network
+        x = torch.flatten(self.dense(x))
+
+        # Standardize the output
+        x = (x - torch.mean(x)) / (torch.std(x) + 1e-5)
+        return x
+
+
+class GCN(torch.nn.Module):
+    def __init__(self, in_channels, layer_config):
+        super().__init__()
+
+        conv_layers = []
+
+
+        for config in layer_config:
+            conv_layers.append(GCNConv(in_channels, config['out_channels']))
+            in_channels = config['out_channels']
+
+        self.conv_layers = nn.ModuleList(conv_layers)
+
+        self.linear = nn.Linear(in_channels, 128)
+        self.linear2 = nn.Linear(128, 1)
 
     def forward(self, x: Tensor, edge_index: Tensor, batch_map: Tensor) -> Tensor:
-        x = self.conv1(x, edge_index).relu()
-        x = self.conv2(x, edge_index).relu()
+        for conv in self.conv_layers:
+            x = conv(x, edge_index).relu()
 
         x = global_mean_pool(x, batch_map)
 
+        x = self.linear(x).relu()
+        x = self.linear2(x)
 
-        x = self.linear(x)
-
-        return x.squeeze()
+        return x
 
 # if __name__ == '__main__':
 #     model = OneDModel(num_features=141)
