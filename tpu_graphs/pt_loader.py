@@ -73,9 +73,9 @@ class LayoutDataset(Dataset):
         config_runtime = np.array([file_data['config_runtime'][trial_idx] / file_data['config_runtime_normalizers'][trial_idx]])
         edge_index = file_data['edge_index']
 
-        node_feat = np.concatenate([node_feat, node_opcode.reshape(-1, 1)], axis=1)
+        # node_feat = np.concatenate([node_feat, node_opcode.reshape(-1, 1)], axis=1)
 
-        return config_feat, node_feat, config_runtime, edge_index, file_idx, trial_idx
+        return config_feat, node_feat, node_opcode, config_runtime, edge_index, file_idx, trial_idx
 
 
 # tile valid

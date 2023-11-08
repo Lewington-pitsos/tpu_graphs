@@ -4,7 +4,7 @@ import random
 from torch import nn, optim
 from torch.utils.data import DataLoader
 
-from .model import GCN, count_parameters
+from .model import SimpleModel, count_parameters
 from .pt_loader import *
 
 
@@ -19,14 +19,7 @@ print('running on', device)
 random.seed(42)
 torch.manual_seed(0)
 
-model = GCN(165, (
-    {'out_channels': 128},
-    {'out_channels': 256},
-    {'out_channels': 512},
-    {'out_channels': 1024},
-    {'out_channels': 1024},
-))
-
+model = SimpleModel(hidden_channels=[16, 32, 16, 48], graph_feats=64, hidden_dim=64)
 
 count_parameters(model)
 
@@ -38,7 +31,7 @@ optimizer = optim.Adam(model.parameters(), lr=3e-4)
 filenames = get_files('tile', 'valid')
 dataset = LayoutDataset(filenames=filenames[1:2])
 print(len(dataset))
-num_epochs = 15_000
+num_epochs = 5_000
 
 wandb.init(project='tpu_graphs')
 
@@ -46,22 +39,21 @@ for epoch in range(num_epochs):
     for i, data in enumerate(dataset):
         config_feat, node_feat, node_opcode, config_runtime, edge_index, _, _ = data
 
-        node_feat = np.concatenate([node_feat, node_opcode.reshape(-1, 1)], axis=1)
-
         config_feat = torch.from_numpy(config_feat).to(device)
         node_feat = torch.from_numpy(node_feat).to(device)
+        node_opcode = torch.from_numpy(node_opcode).to(device)
         config_runtime = torch.from_numpy(config_runtime).to(torch.float32).to(device)
         config_runtime = config_runtime / 8.203627220003426
 
         edge_index = torch.from_numpy(edge_index).permute(1, 0).to(device)
 
-        node_feat = torch.concat([node_feat, config_feat.repeat(node_feat.shape[0], 1)], dim=1).to(device)
-
         node_feat = (node_feat - 14.231035232543945) / 305.2548828125
 
-        preds = model(node_feat, edge_index, torch.zeros(node_feat.shape[0], dtype=torch.long).to(device)).squeeze(1)
-        loss = torch.sqrt(criterion(preds, config_runtime))
+        config_feat = config_feat.unsqueeze(0)
 
+        preds = model(config_feat, node_feat, node_opcode, edge_index).to(device)
+
+        loss = torch.sqrt(criterion(preds, config_runtime))
 
         loss.backward()
         optimizer.step()
