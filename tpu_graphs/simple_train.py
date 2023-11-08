@@ -2,11 +2,10 @@ import wandb
 import torch
 import random
 from torch import nn, optim
-from torch.utils.data import DataLoader
+import numpy as np
 
 from .model import SimpleModel, count_parameters
-from .pt_loader import *
-
+from .pt_loader import get_files
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -29,62 +28,44 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=3e-4)
 
 filenames = get_files('tile', 'valid')
-dataset = LayoutDataset(filenames=filenames[1:2])
-print(len(dataset))
 num_epochs = 5_000
 
 wandb.init(project='tpu_graphs')
 
 for epoch in range(num_epochs):
-    for i, data in enumerate(dataset):
-        config_feat, node_feat, node_opcode, config_runtime, edge_index, _, _ = data
+    for filename in filenames[1:2]:
+        graph_data = dict(np.load(filename, allow_pickle=True))
 
-        config_feat = torch.from_numpy(config_feat).to(device)
-        node_feat = torch.from_numpy(node_feat).to(device)
-        node_opcode = torch.from_numpy(node_opcode).to(device)
-        config_runtime = torch.from_numpy(config_runtime).to(torch.float32).to(device)
-        config_runtime = config_runtime / 8.203627220003426
+        for trial_idx in range(len(graph_data['config_feat'][0])):
+            config_feat = torch.from_numpy(graph_data['config_feat'][trial_idx]).to(device)
+            node_feat = torch.from_numpy(graph_data['node_feat']).to(device)
+            node_opcode = torch.from_numpy(graph_data['node_opcode']).to(device)
+            config_runtime = torch.from_numpy(np.array([
+                graph_data['config_runtime'][trial_idx] / graph_data['config_runtime_normalizers'][trial_idx]
+            ])).to(torch.float32).to(device)
+            edge_index = torch.from_numpy(graph_data['edge_index']).permute(1, 0).to(device)
 
-        edge_index = torch.from_numpy(edge_index).permute(1, 0).to(device)
+            config_runtime = config_runtime / 8.203627220003426
+            node_feat = (node_feat - 14.231035232543945) / 305.2548828125
 
-        node_feat = (node_feat - 14.231035232543945) / 305.2548828125
+            config_feat = config_feat.unsqueeze(0)
 
-        config_feat = config_feat.unsqueeze(0)
+            preds = model(config_feat, node_feat, node_opcode, edge_index).to(device)
 
-        preds = model(config_feat, node_feat, node_opcode, edge_index).to(device)
+            loss = torch.sqrt(criterion(preds, config_runtime))
 
-        loss = torch.sqrt(criterion(preds, config_runtime))
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
 
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+            wandb.log({'loss': loss.item()})
 
-        wandb.log({'loss': loss.item()})
-
-        if epoch % 1000 == 0:
-            print('pred', preds.item(), 'actual', config_runtime.item())
+            if epoch % 1000 == 0:
+                print('pred', preds.item(), 'actual', config_runtime.item())
 
 
-        if i % 2 == 0 and i != 0:
-          break
-
-        # if i % 1500 == 0:
-
-        #     p = preds.detach().to('cpu')
-        #     wandb.log({
-        #         'config_feat': wandb.Histogram(config_feat.to('cpu')),
-        #         'config_feat_mean': config_feat.to('cpu').mean(),
-        #         'config_feat_std': config_feat.to('cpu').std(),
-        #         'node_feat': wandb.Histogram(node_feat.to('cpu')),
-        #         'node_feat_mean': node_feat.to('cpu').mean(),
-        #         'node_feat_std': node_feat.to('cpu').std(),
-        #         'config_runtime': wandb.Histogram(config_runtime.to('cpu')),
-        #         'config_runtime_mean': config_runtime.to('cpu').mean(),
-        #         'config_runtime_std': config_runtime.to('cpu').std(),
-        #         'preds': wandb.Histogram(p),
-        #         'preds_mean': p.mean(),
-        #         'preds_std': p.std(),
-        #     })
+            if trial_idx % 2 == 0 and trial_idx != 0:
+              break
 
 
     wandb.log({'epoch': epoch})
