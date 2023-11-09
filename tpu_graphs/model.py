@@ -15,6 +15,24 @@ def count_parameters(model):
     print(f"The model has {num_parameters:,} trainable parameters")  # using ',' as a thousands separator
 
 
+class ConfigDense(nn.Module):
+    def __init__(self, in_channels, out_channels, hidden):
+        super(ConfigDense, self).__init__()
+        self.fc = nn.Linear(in_channels, out_channels)
+        self.fc2 = nn.Linear(out_channels, hidden)
+        self.fc3 = nn.Linear(hidden, hidden)
+        self.fc4 = nn.Linear(hidden, 1)
+
+        self.activation = nn.ReLU()
+
+    def forward(self, x):
+        x = self.activation(self.fc(x))
+        x = self.activation(self.fc2(x))
+        x = self.activation(self.fc3(x))
+        x = self.fc4(x)
+
+        return x
+
 class FeatureConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_width):
         super(FeatureConv, self).__init__()
@@ -79,7 +97,7 @@ class OneDModel(nn.modules.Module):
 
 
 class SimpleModel(torch.nn.Module):
-    def __init__(self, hidden_channels, graph_feats, hidden_dim):
+    def __init__(self, hidden_channels, graph_feats):
         super().__init__()
 
         op_embedding_dim = 4  # I choose 4-dimensional embedding
@@ -99,11 +117,11 @@ class SimpleModel(torch.nn.Module):
         self.convs.append(GCNConv(last_dim, graph_feats))
 
         # Define a sequential dense neural network
-        self.dense = torch.nn.Sequential(nn.Linear(graph_feats + 24, 64),
+        self.dense = torch.nn.Sequential(nn.Linear(graph_feats + 24, graph_feats),
                                          nn.ReLU(),
-                                         nn.Linear(64, 64),
+                                         nn.Linear(graph_feats, graph_feats),
                                          nn.ReLU(),
-                                         nn.Linear(64, 1),
+                                         nn.Linear(graph_feats, 1),
                                         )
 
     def forward(self, x_cfg: Tensor, x_feat: Tensor, x_op: Tensor, edge_index: Tensor) -> Tensor:

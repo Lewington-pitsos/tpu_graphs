@@ -73,7 +73,7 @@ for epoch in range(num_epochs):
             print('pred', preds.item(), 'actual', config_runtime.item())
 
 
-        if i % 2 == 0 and i != 0:
+        if i % 8 == 0 and i != 0:
           break
 
         # if i % 1500 == 0:
