@@ -3,8 +3,6 @@ import numpy as np
 def slowdown(y_true, y_pred, k):
     y_fastest = np.min(y_true)
 
-    slowdowns_actual = y_true / y_fastest
-
     top_k_indices = y_pred[:k]
 
     top_k_predicted_times = np.min(y_true[top_k_indices])

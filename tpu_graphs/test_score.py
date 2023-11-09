@@ -24,3 +24,6 @@ def test_scores():
 
     assert np.mean(all_scores) == 1.0
     assert np.mean(rand_scores) == 0.10694134643762006
+
+if __name__ == '__main__':
+    test_scores()
