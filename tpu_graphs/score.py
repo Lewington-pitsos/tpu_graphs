@@ -11,7 +11,6 @@ def slowdown(y_true, y_pred, k):
 
     return ratio - 1
 
-
 def speed_score(y_true, y_pred, k):
     return 1 - slowdown(y_true, y_pred, k)
 
