@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 
 
-def load_data(files):
+def load_data(files, idx):
     X, y = [], []
 
     for filename in files:
@@ -14,18 +14,18 @@ def load_data(files):
         runtime_normalisers = np.load(filename, allow_pickle=True)['config_runtime_normalizers']
         runtimes = unnormalised_runtime / runtime_normalisers
 
-        output_bounds_sums = np.load(filename, allow_pickle=True)['config_feat'][:, [2, 14, 15]]
+        output_bounds_sums = np.load(filename, allow_pickle=True)['config_feat'][:, idx]
 
         X.extend(output_bounds_sums)
         y.extend(runtimes)
 
     return np.array(X), np.array(y).reshape(-1, 1)
 
-
 def train():
+    idx = [6,7, 14, 15]
     np.random.seed(42)
     train_file_files = get_files('tile', 'train')
-    X, y = load_data(train_file_files)
+    X, y = load_data(train_file_files, idx)
 
     print('X shape', X.shape)
     print('y shape', y.shape)
@@ -40,7 +40,7 @@ def train():
     print("Train MSE:", train_mse)
 
     val_file_files = get_files('tile', 'valid')
-    X_val, y_val = load_data(val_file_files)
+    X_val, y_val = load_data(val_file_files, idx)
     y_pred = model.predict(X_val)
     mse = mean_squared_error(y_val, y_pred)
 
@@ -60,7 +60,7 @@ def train():
 
         perfect_preds = np.argsort(runtimes)
         perfect_score = speed_score(runtimes, perfect_preds, 3)
-        predicted_runtimes = model.predict(np.load(filename, allow_pickle=True)['config_feat'][:, [2, 14, 15]])
+        predicted_runtimes = model.predict(np.load(filename, allow_pickle=True)['config_feat'][:, idx])
         other_preds = np.argsort(predicted_runtimes[:, 0])
         linear_score = speed_score(runtimes, other_preds, 3)
 
