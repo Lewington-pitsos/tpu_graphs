@@ -32,3 +32,8 @@ data
 **/.ipynb_checkpoints
 wandb
 Cora
+
+**/*.png
+**/*.pt
+submissions/*
+!submissions/.gitignore

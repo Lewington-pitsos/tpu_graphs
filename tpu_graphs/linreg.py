@@ -19,7 +19,7 @@ def load_data(files, idx):
         X.extend(output_bounds_sums)
         y.extend(runtimes)
 
-    return np.array(X), np.array(y).reshape(-1, 1)
+    return np.array(X), np.array(y).reshape(-1, 1) / 8.203627220003426
 
 def train():
     idx = [6,7, 14, 15]
@@ -36,19 +36,19 @@ def train():
     print("Model coefficients:", model.coef_)
     print("Model intercept:", model.intercept_)
 
-    train_mse = mean_squared_error(y, model.predict(X))
-    print("Train MSE:", train_mse)
+    train_mse = np.sqrt(mean_squared_error(y, model.predict(X)))
+    print("Train RMSE:", train_mse)
 
     val_file_files = get_files('tile', 'valid')
     X_val, y_val = load_data(val_file_files, idx)
     y_pred = model.predict(X_val)
-    mse = mean_squared_error(y_val, y_pred)
+    mse = np.sqrt(mean_squared_error(y_val, y_pred))
 
-    print("Mean Squared Error:", mse)
+    print("Valid Root Mean Squared Error:", mse)
 
-    default_mse = mean_squared_error(y_val, np.mean(y_val) * np.ones_like(y_val))
+    default_mse = np.sqrt(mean_squared_error(y_val, np.mean(y_val) * np.ones_like(y_val)))
 
-    print("default MSE", default_mse)
+    print("default RMSE", default_mse)
 
     all_scores = []
     rand_scores = []
