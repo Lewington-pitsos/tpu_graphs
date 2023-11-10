@@ -17,7 +17,7 @@ def generate_ordering(identifier, model):
 
         return ";".join([str(i) for i in list(indices[:5])])
     else:
-        return ";".join(map(str, np.random.choice(range(10), 5, replace=False)))
+        return ";".join(map(str, range(5)))
 
 
 def submit(model, example_file, output_file=None):
@@ -41,7 +41,8 @@ def dense_model_fn(device):
 	model.to(device)
 
 	def model_fn(filename):
-		return file_preds(filename, model, 256, device)
+		preds, _ = file_preds(filename, model, 256, device)
+		return preds
 
 	return model_fn
 

@@ -19,7 +19,8 @@ def valid_loss(model, bs, criterion):
 
 	losses = []
 	for filename in valid_filenames:
-		preds = file_preds(filename, model, bs, device)
+		preds, config_runtime = file_preds(filename, model, bs, device)
+		preds, config_runtime = torch.from_numpy(preds), torch.from_numpy(config_runtime)
 		loss = torch.sqrt(criterion(preds, config_runtime))
 		losses.append(loss.mean().item())
 
@@ -37,7 +38,7 @@ optimizer = optim.Adam(model.parameters(), lr=3e-4)
 TRAIN_DIR = 'data/npz_all/npz/tile/xla/train/'
 
 filenames = [os.path.join(TRAIN_DIR, filename) for filename in os.listdir(TRAIN_DIR)]
-num_epochs = 4
+num_epochs = 2
 bs = 256
 
 wandb.init(project='tpu_graphs')
@@ -55,9 +56,9 @@ for epoch in range(num_epochs):
 		node_opcode = torch.from_numpy(graph_data['node_opcode']).to(device)
 		edge_index = torch.from_numpy(graph_data['edge_index']).permute(1, 0).to(device)
 
-		for trial_idx in range(0, len(graph_data['config_feat'][0]), bs):
+		for trial_idx in range(0, len(graph_data['config_runtime']), bs):
 			itr += 1
-			next_idx = min(trial_idx + bs, len(graph_data['config_feat'][0]))
+			next_idx = min(trial_idx + bs, len(graph_data['config_runtime']))
 
 			config_feat = torch.from_numpy(graph_data['config_feat'][trial_idx:next_idx]).to(device)
 			config_feat = (config_feat - 16.741966247558594) / 74.34544372558594
@@ -66,7 +67,6 @@ for epoch in range(num_epochs):
 			])).flatten().to(torch.float32).to(device)
 
 			config_runtime = config_runtime / 8.203627220003426
-
 
 			preds = model(config_feat)
 			loss = torch.sqrt(criterion(preds.flatten(), config_runtime))

@@ -52,17 +52,17 @@ def train():
 
     all_scores = []
     rand_scores = []
-
+    K=5
     for filename in val_file_files:
         unnormalised_runtime = np.load(filename, allow_pickle=True)['config_runtime']
         runtime_normalisers = np.load(filename, allow_pickle=True)['config_runtime_normalizers']
         runtimes = unnormalised_runtime / runtime_normalisers
 
         perfect_preds = np.argsort(runtimes)
-        perfect_score = speed_score(runtimes, perfect_preds, 3)
+        perfect_score = speed_score(runtimes, perfect_preds, K)
         predicted_runtimes = model.predict(np.load(filename, allow_pickle=True)['config_feat'][:, idx])
         other_preds = np.argsort(predicted_runtimes[:, 0])
-        linear_score = speed_score(runtimes, other_preds, 3)
+        linear_score = speed_score(runtimes, other_preds, K)
 
         rand_scores.append(linear_score)
         all_scores.append(perfect_score)
