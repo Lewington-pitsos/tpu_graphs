@@ -3,32 +3,20 @@ import torch
 import numpy as np
 from .score import speed_score
 from .model import ConfigDense
+from .pt_loader	import file_data
 
 def file_preds(filename, model, bs, device):
-	graph_data = dict(np.load(filename, allow_pickle=True))
-	node_feat = torch.from_numpy(graph_data['node_feat']).to(device)
-	node_feat = (node_feat - 14.231035232543945) / 305.2548828125
-	node_opcode = torch.from_numpy(graph_data['node_opcode']).to(device)
-	edge_index = torch.from_numpy(graph_data['edge_index']).permute(1, 0).to(device)
+	node_feat, node_opcode, edge_index, config_feat, config_runtime = file_data(filename, device)
 
 	all_preds = []
 	all_runtimes = []
 	with torch.no_grad():
-		for trial_idx in range(0, len(graph_data['config_runtime']), bs):
-			next_idx = min(trial_idx + bs, len(graph_data['config_runtime']))
+		for trial_idx in range(0, len(config_runtime), bs):
+			next_idx = trial_idx + bs
 
-			config_feat = torch.from_numpy(graph_data['config_feat'][trial_idx:next_idx]).to(device)
-			config_feat = (config_feat - 16.741966247558594) / 74.34544372558594
-			config_runtime = torch.from_numpy(np.array([
-				graph_data['config_runtime'][trial_idx:next_idx] / graph_data['config_runtime_normalizers'][trial_idx:next_idx]
-			])).flatten().to(torch.float32).to(device)
-
-
-			config_runtime = config_runtime / 8.203627220003426
-
-			preds = model(config_feat)
+			preds = model(config_feat[trial_idx:next_idx], node_feat, node_opcode, edge_index)
 			all_preds.extend(list(preds.flatten().cpu().detach().numpy()))
-			all_runtimes.extend(list(config_runtime.cpu().detach().numpy()))
+			all_runtimes.extend(list(config_runtime[trial_idx:next_idx].cpu().detach().numpy()))
 
 	return np.array(all_preds), np.array(all_runtimes)
 
@@ -72,3 +60,6 @@ if __name__ == '__main__':
 	print("perfect score", np.mean(perfect_scores))
 	print("random score", np.mean(rand_scores))
 	print("config score", np.mean(linear_scores))
+	# perfect score 1.0
+	# random score 0.49241369138166075
+	# config score 0.6849965446934841

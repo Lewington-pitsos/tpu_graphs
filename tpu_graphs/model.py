@@ -6,7 +6,7 @@ from torch_geometric.nn import GCNConv, global_mean_pool
 def count_parameters(model):
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"The model has {num_parameters:,} trainable parameters")  # using ',' as a thousands separator
-
+    return num_parameters
 
 class ConfigDense(nn.Module):
     def __init__(self, in_channels, out_channels, hidden):
@@ -18,8 +18,8 @@ class ConfigDense(nn.Module):
 
         self.activation = nn.ReLU()
 
-    def forward(self, x):
-        x = self.activation(self.fc(x))
+    def forward(self, config: Tensor, node_features: Tensor, opcodes: Tensor, edge_index: Tensor):
+        x = self.activation(self.fc(config))
         x = self.activation(self.fc2(x))
         x = self.activation(self.fc3(x))
         x = self.fc4(x)
@@ -90,13 +90,10 @@ class OneDModel(nn.modules.Module):
 
 
 class SimpleModel(torch.nn.Module):
-    def __init__(self, hidden_channels, graph_feats):
+    def __init__(self, hidden_channels, graph_feats, op_embedding_dim=128):
         super().__init__()
 
-        op_embedding_dim = 4  # I choose 4-dimensional embedding
-        self.embedding = torch.nn.Embedding(120,  # 120 different op-codes
-                                            op_embedding_dim,
-                                           )
+        self.embedding = torch.nn.Embedding(120, op_embedding_dim )
         assert len(hidden_channels) > 0
         in_channels = op_embedding_dim + 140
         self.convs = torch.nn.ModuleList()
@@ -117,14 +114,14 @@ class SimpleModel(torch.nn.Module):
                                          nn.Linear(graph_feats, 1),
                                         )
 
-    def forward(self, x_cfg: Tensor, x_feat: Tensor, x_op: Tensor, edge_index: Tensor) -> Tensor:
-        x = torch.cat([x_feat, self.embedding(x_op.long())], dim=1)
+    def forward(self, config: Tensor, node_features: Tensor, opcodes: Tensor, edge_index: Tensor) -> Tensor:
+        x = torch.cat([node_features, self.embedding(opcodes.long())], dim=1)
         for conv in self.convs:
             x = conv(x, edge_index).relu()
 
         x_graph = torch.mean(x, 0)
 
-        x = torch.cat([x_cfg, x_graph.repeat((len(x_cfg), 1))], axis=1)
+        x = torch.cat([config, x_graph.repeat((len(config), 1))], axis=1)
         x = torch.flatten(self.dense(x))
 
         return x
