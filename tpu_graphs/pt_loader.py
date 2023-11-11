@@ -1,3 +1,4 @@
+import math
 import os
 import random
 import numpy as np
@@ -193,39 +194,70 @@ def file_data(filename, device):
 
 class FilewiseLoader():
 	def __init__(self, filenames, device, batch_size) -> None:
-		self.file_data = []
 		self.filenames = filenames
+		self.remaining_filenames = [f for f in filenames]
 		self.device = device
 		self.batch_size = batch_size
+		self.total_length = 0
 
 		self.file_data_dct = dict()
 		for filename in self.filenames:
 			data = file_data(filename, 'cpu')
 
+			n_trials = len(data[-1])
+			self.file_data_dct[filename] = (data, np.arange(n_trials))
+			self.total_length += math.ceil(n_trials / batch_size)
+
+		np.random.seed(0)
+
+	def reset(self):
+		np.random.seed(0)
+		self._reset_file_data_dct()
+
+	def _reset_file_data_dct(self):
+		for filename, values in self.file_data_dct.items():
+			data, _ = values
 			self.file_data_dct[filename] = (data, np.arange(len(data[-1])))
+		self.remaining_filenames = [f for f in self.filenames]
+
+	def __len__(self):
+		return self.total_length
 
 	def __iter__(self):
 		return self
 
 	def __next__(self):
-		if len(self.filenames) == 0:
+		if len(self.remaining_filenames) == 0:
+			self._reset_file_data_dct()
 			raise StopIteration
-		selected_file = random.choice(self.filenames)
+		selected_file = self._choose_filename_proportionally()
 		return self.get_samples_for_file(selected_file)
 
+	def _calculate_remaining_filename_sample_proportions(self):
+		proportions = []
+		for filename in self.remaining_filenames:
+			_, remaining_indices = self.file_data_dct[filename]
+			proportions.append(len(remaining_indices))
+
+		return np.array(proportions) / np.sum(proportions)
+
+	def _choose_filename_proportionally(self):
+		proportions = self._calculate_remaining_filename_sample_proportions()
+		return np.random.choice(self.remaining_filenames, p=proportions)
+
 	def get_samples_for_file(self, filename):
-		(node_feat, node_opcode, edge_index, config_feat, config_runtime), remaining_indices = self.file_data_dct[filename]
+		data, remaining_indices = self.file_data_dct[filename]
+		node_feat, node_opcode, edge_index, config_feat, config_runtime = data
 
 		random_indices = np.random.choice(remaining_indices, self.batch_size)
-
 		remaining_indices = np.setdiff1d(remaining_indices, random_indices)
 
 		if len(remaining_indices) == 0:
-			self.filenames.remove(filename)
+			self.remaining_filenames.remove(filename)
 
 		config_feat_batch = config_feat[random_indices]
 		config_runtime_batch = config_runtime[random_indices]
 
-		self.file_data_dct[filename] = ((node_feat, node_opcode, edge_index, config_feat, config_runtime), remaining_indices)
+		self.file_data_dct[filename] = (data, remaining_indices)
 
 		return node_feat.to(self.device), node_opcode.to(self.device), edge_index.to(self.device), config_feat_batch.to(self.device), config_runtime_batch.to(self.device)
