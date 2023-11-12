@@ -16,8 +16,8 @@ else:
 
 
 # model = ConfigDense(in_channels=24, out_channels=512, hidden=512)
-model = Opcodes(in_channels=24, out_channels=128, hidden=128, op_embedding_dim=128)
-# model = GraphModel(hidden_channels=[128, 256, 512, 512, 1024], graph_feats=512)
+# model = Opcodes(in_channels=24, out_channels=128, hidden=128, op_embedding_dim=128)
+model = GraphModel(hidden_channels=[128, 256, 512, 512, 1024], graph_feats=512)
 num_parametrs = count_parameters(model)
 model.to(device)
 

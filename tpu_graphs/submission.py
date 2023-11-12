@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import torch
 import numpy as np
-from .model import ConfigDense, Opcodes
+from .model import ConfigDense, Opcodes, GraphModel
 from .validate import file_preds
 
 TEST_DIR = 'data/npz_all/npz/tile/xla/test/'
@@ -35,8 +35,8 @@ def submit(model, example_file, output_file=None):
 
 	baseline_submission.to_csv(output_file, index=False)
 
-def dense_model_fn(device):
-	model = Opcodes(in_channels=24, out_channels=128, hidden=128, op_embedding_dim=128)
+def model_fn(device):
+	model = GraphModel(hidden_channels=[128, 256, 512, 512, 1024], graph_feats=512)
 	model.load_state_dict(torch.load('model.pt'))
 	model.to(device)
 
@@ -51,6 +51,6 @@ if torch.cuda.is_available():
 else:
 	device = torch.device('cpu')
 
-model = dense_model_fn(device)
+model = model_fn(device)
 
 submit(model, 'data/sample_submission.csv')
