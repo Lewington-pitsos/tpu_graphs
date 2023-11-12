@@ -4,9 +4,9 @@ from torch import Tensor
 from torch_geometric.nn import GCNConv, global_mean_pool
 from torch_geometric.datasets import Planetoid
 import torch.nn.functional as F
-from .model import SimpleModel, count_parameters
+from .model import GraphModel, count_parameters
 
-model = SimpleModel(hidden_channels=[16, 32, 16, 48], graph_feats=64, hidden_dim=64)
+model = GraphModel(hidden_channels=[16, 32, 16, 48], graph_feats=64, hidden_dim=64)
 count_parameters(model)
 
 # n_feats = 128

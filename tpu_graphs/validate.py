@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from .score import speed_score
-from .model import ConfigDense, SimpleModel
+from .model import ConfigDense, GraphModel
 from .pt_loader	import file_data
 
 def file_preds(filename, model, bs, device):
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 	linear_scores = []
 
 	# model = ConfigDense(in_channels=24, out_channels=512, hidden=512)
-	model = SimpleModel(hidden_channels=[128, 256, 512, 512, 1024], graph_feats=512)
+	model = GraphModel(hidden_channels=[128, 256, 512, 512, 1024], graph_feats=512)
 
 	model.load_state_dict(torch.load('model.pt'))
 	model.to(device)

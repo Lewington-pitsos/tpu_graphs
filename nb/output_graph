@@ -1,0 +1,83 @@
+// My Graph
+digraph {
+	0 [label=parameter]
+	1 [label=parameter]
+	2 [label=broadcast]
+	3 [label=parameter]
+	4 [label=broadcast]
+	5 [label=multiply]
+	6 [label=multiply]
+	7 [label=parameter]
+	8 [label=broadcast]
+	9 [label=parameter]
+	10 [label=broadcast]
+	11 [label=multiply]
+	12 [label=subtract]
+	13 [label=add]
+	14 [label=bitcast]
+	15 [label=parameter]
+	16 [label=bitcast]
+	17 [label=parameter]
+	18 [label=parameter]
+	19 [label=parameter]
+	20 [label=parameter]
+	21 [label=parameter]
+	22 [label=fusion]
+	23 [label=parameter]
+	24 [label=fusion]
+	25 [label=convolution]
+	26 [label=parameter]
+	27 [label=broadcast]
+	28 [label=add]
+	29 [label=constant]
+	30 [label=broadcast]
+	31 [label=multiply]
+	32 [label=parameter]
+	33 [label=parameter]
+	34 [label=parameter]
+	35 [label=parameter]
+	36 [label=parameter]
+	37 [label=parameter]
+	38 [label=parameter]
+	39 [label=fusion]
+	1 -> 2
+	3 -> 4
+	2 -> 5
+	4 -> 5
+	0 -> 6
+	5 -> 6
+	7 -> 8
+	9 -> 10
+	5 -> 11
+	10 -> 11
+	8 -> 12
+	11 -> 12
+	6 -> 13
+	12 -> 13
+	13 -> 14
+	15 -> 16
+	14 -> 22
+	17 -> 22
+	18 -> 22
+	19 -> 22
+	20 -> 22
+	21 -> 22
+	16 -> 24
+	23 -> 24
+	22 -> 25
+	24 -> 25
+	26 -> 27
+	25 -> 28
+	27 -> 28
+	29 -> 30
+	28 -> 31
+	30 -> 31
+	31 -> 39
+	32 -> 39
+	33 -> 39
+	34 -> 39
+	35 -> 39
+	36 -> 39
+	37 -> 39
+	38 -> 39
+}

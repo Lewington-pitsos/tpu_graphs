@@ -31,23 +31,36 @@ class Opcodes(nn.Module):
 		super(Opcodes, self).__init__()
 
 		self.embedding = torch.nn.Embedding(120, op_embedding_dim )
-		in_channels = op_embedding_dim + 140
+
+		self.emb_fc = nn.Linear(op_embedding_dim, hidden)
+		self.emb_fc2 = nn.Linear(hidden, hidden)
+
+
+		in_channels = hidden + 24
 
 
 		self.fc = nn.Linear(in_channels, out_channels)
 		self.fc2 = nn.Linear(out_channels, hidden)
-		self.fc3 = nn.Linear(hidden, hidden)
-		self.fc4 = nn.Linear(hidden, 1)
+		self.fc3 = nn.Linear(hidden, 1)
+		self.fc3.bias.data = torch.tensor([0.607150242])
 
 		self.activation = nn.ReLU()
 
 	def forward(self, config: Tensor, node_features: Tensor, opcodes: Tensor, edge_index: Tensor):
-		x = self.embedding(opcodes.long())
+		x = self.embedding(opcodes.long()) # (n_nodes, op_embedding_dim)
+
+		x = self.activation(self.emb_fc(x))
+		x = self.activation(self.emb_fc2(x))
+
+		x = torch.mean(x, 0) # (hidden)
+
+		x = x.repeat((config.shape[0], 1)) # (batch_size, hidden)
+
+		x = torch.cat([x, config], axis=1)
 
 		x = self.activation(self.fc(x))
 		x = self.activation(self.fc2(x))
-		x = self.activation(self.fc3(x))
-		x = self.fc4(x)
+		x = self.fc3(x)
 
 		return x
 
@@ -114,7 +127,7 @@ class OneDModel(nn.modules.Module):
 		return combined
 
 
-class SimpleModel(torch.nn.Module):
+class GraphModel(torch.nn.Module):
 	def __init__(self, hidden_channels, graph_feats, op_embedding_dim=128):
 		super().__init__()
 

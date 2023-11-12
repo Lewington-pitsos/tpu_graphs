@@ -4,7 +4,7 @@ import torch
 import os
 from torch import nn, optim
 import numpy as np
-from .model import SimpleModel, count_parameters, ConfigDense, Opcodes
+from .model import GraphModel, count_parameters, ConfigDense, Opcodes
 from .plot import *
 from .validate import valid_loss
 from .pt_loader import file_data, FilewiseLoader
@@ -16,8 +16,8 @@ else:
 
 
 # model = ConfigDense(in_channels=24, out_channels=512, hidden=512)
-# model = Opcodes(in_channels=24, out_channels=512, hidden=512, op_embedding_dim=128)
-model = SimpleModel(hidden_channels=[128, 256, 512, 512, 1024], graph_feats=512)
+model = Opcodes(in_channels=24, out_channels=128, hidden=128, op_embedding_dim=128)
+# model = GraphModel(hidden_channels=[128, 256, 512, 512, 1024], graph_feats=512)
 num_parametrs = count_parameters(model)
 model.to(device)
 
@@ -26,10 +26,10 @@ TRAIN_DIR = 'data/npz_all/npz/tile/xla/train/'
 filenames = [os.path.join(TRAIN_DIR, filename) for filename in os.listdir(TRAIN_DIR)]
 
 config = {
-	'num_epochs': 4,
+	'num_epochs': 10,
 	'batch_size': 256,
 	'n_files': len(filenames),
-	'lr': 3e-4,
+	'lr': 5e-4,
 	'num_parametrs': num_parametrs,
 	'model_class': type(model).__name__
 }
@@ -46,8 +46,6 @@ for epoch in range(config['num_epochs']):
 		# edge_index = (2, n_edges)
 		# batch_config = (batch_size, 24)
 		# batch_runtime = (batch_size)
-
-
 
 		preds = model(batch_config, node_feat, node_opcode, edge_index)
 		loss = criterion(preds.flatten(), batch_runtime)
