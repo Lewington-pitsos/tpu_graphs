@@ -102,23 +102,21 @@ class SimpleModel(torch.nn.Module):
 			self.convs.append(GCNConv(hidden_channels[i], hidden_channels[i+1]))
 		self.convs.append(GCNConv(hidden_channels[-1], graph_feats))
 
-		self.conv_parameters = [p for conv in self.convs for p in conv.parameters()]
-		print(f"Number of conv parameters: {sum([p.numel() for p in self.conv_parameters])}")
 
+		final_layer = nn.Linear(graph_feats, 1)
+		final_layer.bias.data = torch.tensor([0.607150242])
 
 		self.dense = torch.nn.Sequential(
 			nn.Linear(graph_feats + 24, graph_feats),
 			nn.ReLU(),
 			nn.Linear(graph_feats, graph_feats),
 			nn.ReLU(),
-			nn.Linear(graph_feats, 1),
+			final_layer
 		)
-
-		self.dense_parameters = [p for p in self.dense.parameters()]
-		print(f"Number of dense parameters: {sum([p.numel() for p in self.dense_parameters])}")
 
 	def forward(self, config: Tensor, node_features: Tensor, opcodes: Tensor, edge_index: Tensor) -> Tensor:
 		x = torch.cat([node_features, self.embedding(opcodes.long())], dim=1)
+
 		for conv in self.convs:
 			x = conv(x, edge_index).relu()
 

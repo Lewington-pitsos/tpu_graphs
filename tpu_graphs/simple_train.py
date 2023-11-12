@@ -24,7 +24,7 @@ TRAIN_DIR = 'data/npz_all/npz/tile/xla/train/'
 filenames = [os.path.join(TRAIN_DIR, filename) for filename in os.listdir(TRAIN_DIR)]
 
 config = {
-	'num_epochs': 2000, # 2
+	'num_epochs': 6000, # 2
 	'batch_size': 4, # 256
 	'n_files': len(filenames),
 	'lr': 3e-4,
@@ -33,17 +33,13 @@ config = {
 }
 
 loader = FilewiseLoader(filenames, device, config['batch_size'])
-optimizer = optim.Adam([
-	{ 'params': model.conv_parameters, 'lr': config['lr'] / 4 },
-	{ 'params': model.dense_parameters, 'lr': config['lr']},
-])
+optimizer = optim.Adam(model.parameters(), lr=config['lr'])
 wandb.init(project='overfit_tpu_graphs', config=config)
 
 itr = 0
 for epoch in range(config['num_epochs']):
 
 	for node_feat, node_opcode, edge_index, batch_config, batch_runtime in tqdm(loader):
-		itr += 1
 		preds = model(batch_config, node_feat, node_opcode, edge_index)
 		loss = criterion(preds.flatten(), batch_runtime)
 
@@ -55,7 +51,12 @@ for epoch in range(config['num_epochs']):
 
 		if itr % 1000 == 0:
 			plot_outputs_vs_predictions(batch_runtime.cpu().detach(), preds.cpu().detach())
-			plot_config(batch_config.cpu().detach())
+			plot_config(batch_config.cpu().detach(), 'tile_config')
+			plot_config(node_feat.cpu().detach(), 'node_feat')
+			plot_opcodes(node_opcode.cpu().detach())
+
+		itr += 1
+
 
 		if itr % 2 == 0:
 			loader.reset()

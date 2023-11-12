@@ -175,15 +175,23 @@ class BufferedRandomSampler:
 		# If you want to use len(sampler), it should return the number of samples
 		return self.data_source_length
 
+def safe_normalize(feature_matrix):
+	max_feat = torch.max(feature_matrix, dim=0, keepdim=True).values
+	min_feat = torch.min(feature_matrix, dim=0, keepdim=True).values
+	return (feature_matrix - min_feat) / ((max_feat - min_feat) + 1e-8)
+
 def file_data(filename, device):
 	graph_data = dict(np.load(filename, allow_pickle=True))
 	node_feat = torch.from_numpy(graph_data['node_feat']).to(device)
-	node_feat = (node_feat - 14.231035232543945) / 305.2548828125
+
+	node_feat = safe_normalize(node_feat)
+	# node_feat = (node_feat - 14.231035232543945) / 305.2548828125
 	node_opcode = torch.from_numpy(graph_data['node_opcode']).to(device)
 	edge_index = torch.from_numpy(graph_data['edge_index']).permute(1, 0).to(device)
 
 	config_feat = torch.from_numpy(graph_data['config_feat']).to(device)
-	config_feat = (config_feat - 16.741966247558594) / 74.34544372558594
+	# config_feat = (config_feat - 16.741966247558594) / 74.34544372558594
+	config_feat = safe_normalize(config_feat)
 
 	config_runtime = torch.from_numpy(np.array([
 		graph_data['config_runtime'] / graph_data['config_runtime_normalizers'] / 8.203627220003426
