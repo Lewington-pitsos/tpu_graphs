@@ -20,24 +20,38 @@ def plot_config(config_feat, name):
 	save_file = 'tmp.png'
 	matrix = config_feat[:8].numpy()
 
-	col_min = matrix.min(axis=0)
-	col_ptp = matrix.ptp(axis=0)
+	normalized_matrix = (matrix - matrix.min(axis=0)) / (matrix.ptp(axis=0) + 1)
 
-	normalized_matrix = (matrix - col_min) / (col_ptp + (col_ptp == 0))
+	fig, ax = plt.subplots(figsize=(12, 3))  # Set the figure size
+	for i in range(normalized_matrix.shape[1]):
+		# Get the range for each column
+		col_min = matrix[:, i].min()
+		col_max = matrix[:, i].max()
+		col_range = col_max - col_min
 
-	fig, ax = plt.subplots(figsize=(12, 3))
+		if col_range > 0:  # Avoid division by zero
+			# Normalize the column
+			normalized_matrix[:, i] = (matrix[:, i] - col_min) / col_range
+		else:
+			# If the column range is 0 (i.e., all values are the same), set to midpoint (0.5)
+			normalized_matrix[:, i] = 0.5
+
+	# Now use matshow to display the independently normalized matrix
 	cax = ax.matshow(normalized_matrix, cmap='viridis')
 
-	if normalized_matrix.size <= 192:  # Adjust this threshold based on your needs
+	# Loop over data dimensions and create text annotations with smaller font size.
+	if matrix.size < 193:
 		for i in range(normalized_matrix.shape[0]):
 			for j in range(normalized_matrix.shape[1]):
-				ax.text(j, i, f'{matrix[i, j]}', ha='center', va='center', color='w', fontsize=6)
+				ax.text(j, i, f'{matrix[i, j]:.1f}', ha='center', va='center', color='w', fontsize=6)
 
 	plt.savefig(save_file)
 	plt.close(fig)
+	plt.close()
+	img = Image.open(save_file)
+	wandb.log({name: wandb.Image(img)})
+	img.close()
 
-	with Image.open(save_file) as img:
-		wandb.log({name: wandb.Image(img)})
 
 def plot_opcodes(opcodes):
 	save_file = 'tmp.png'

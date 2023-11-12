@@ -26,6 +26,31 @@ class ConfigDense(nn.Module):
 
 		return x
 
+class Opcodes(nn.Module):
+	def __init__(self, in_channels, out_channels, hidden, op_embedding_dim=128):
+		super(Opcodes, self).__init__()
+
+		self.embedding = torch.nn.Embedding(120, op_embedding_dim )
+		in_channels = op_embedding_dim + 140
+
+
+		self.fc = nn.Linear(in_channels, out_channels)
+		self.fc2 = nn.Linear(out_channels, hidden)
+		self.fc3 = nn.Linear(hidden, hidden)
+		self.fc4 = nn.Linear(hidden, 1)
+
+		self.activation = nn.ReLU()
+
+	def forward(self, config: Tensor, node_features: Tensor, opcodes: Tensor, edge_index: Tensor):
+		x = self.embedding(opcodes.long())
+
+		x = self.activation(self.fc(x))
+		x = self.activation(self.fc2(x))
+		x = self.activation(self.fc3(x))
+		x = self.fc4(x)
+
+		return x
+
 class FeatureConv(nn.Module):
 	def __init__(self, in_channels, out_channels, kernel_width):
 		super(FeatureConv, self).__init__()

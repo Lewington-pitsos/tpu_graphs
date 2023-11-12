@@ -190,8 +190,7 @@ def file_data(filename, device):
 	edge_index = torch.from_numpy(graph_data['edge_index']).permute(1, 0).to(device)
 
 	config_feat = torch.from_numpy(graph_data['config_feat']).to(device)
-	# config_feat = (config_feat - 16.741966247558594) / 74.34544372558594
-	config_feat = safe_normalize(config_feat)
+	config_feat = (config_feat - 16.741966247558594) / 74.34544372558594
 
 	config_runtime = torch.from_numpy(np.array([
 		graph_data['config_runtime'] / graph_data['config_runtime_normalizers'] / 8.203627220003426
@@ -236,7 +235,7 @@ class FilewiseLoader():
 
 	def __next__(self):
 		if len(self.remaining_filenames) == 0:
-			self._reset_file_data_dct()
+			self.reset()
 			raise StopIteration
 		selected_file = self._choose_filename_proportionally()
 		return self.get_samples_for_file(selected_file)
