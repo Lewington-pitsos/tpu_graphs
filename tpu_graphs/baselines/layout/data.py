@@ -17,7 +17,7 @@
 The high-level function is `get_npz_dataset`, which can be called as:
 
 ```
-dataset_partitions = get_npz_dataset('~/data/tpugraphs/npz/layout/xla/random')
+dataset_partitions = get_npz_dataset('data/tpugraphs/npz/layout/xla/random')
 # Then access: dataset_partitions.{train, vaildation, test}
 # You may substite 'xla' with 'nlp' and 'random' with 'default'
 ```

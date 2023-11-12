@@ -26,11 +26,11 @@ from tpu_graphs.baselines.tiles import metrics
 import tqdm
 
 _DATA_ROOT = flags.DEFINE_string(
-    'data_root', '~/data/tpugraphs_tiles',
+    'data_root', 'data/tpugraphs_tiles',
     'Root directory containing dataset. It must contain subdirectories '
     '{train, test, validation}, each having many .npz files')
 _CACHE_DIR = flags.DEFINE_string(
-    'cache_dir', '~/data/cache/tpugraphs_tiles',
+    'cache_dir', 'data/npz_all/cache/tpugraphs_tiles',
     'If given, dataset tensors will be cached here for faster loading.')
 _REPEATS = flags.DEFINE_integer(
     'repeats', 10, 'Number of times to repeat experiment.')

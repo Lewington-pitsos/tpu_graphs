@@ -22,8 +22,8 @@ for source in ('xla', 'nlp'):
     for split in ('train', 'valid', 'test'):
       filenames.append(f'npz_layout_{source}_{search}_{split}.tar')
 
-print('mkdir -p ~/data/tpugraphs')
-print('cd ~/data/tpugraphs')
+print('mkdir -p data/tpugraphs')
+print('cd data/tpugraphs')
 print('\n\n')
 for f in filenames:
   print(f'ls {f} || '

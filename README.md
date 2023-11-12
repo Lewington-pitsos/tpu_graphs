@@ -36,8 +36,8 @@ Removing the last pipe (`| bash`) shows the commands for downloading the dataset
 To copy data for a specific collection, e.g. the layout:xla:random collection, run:
 
 ```sh
-mkdir -p ~/data/tpugraphs
-cd ~/data/tpugraphs
+mkdir -p data/tpugraphs
+cd data/tpugraphs
 
 curl http://download.tensorflow.org/data/tpu_graphs/v0/npz_layout_xla_random_train.tar > npz_layout_xla_random_train.tar
 curl http://download.tensorflow.org/data/tpu_graphs/v0/npz_layout_xla_random_valid.tar > npz_layout_xla_random_valid.tar

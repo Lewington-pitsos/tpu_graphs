@@ -34,11 +34,11 @@ import tqdm
 
 
 _DATA_ROOT = flags.DEFINE_string(
-    'data_root', '~/data/tpugraphs/npz/tile/xla',
+    'data_root', 'data/npz_all/npz/tile/xla',
     'Root directory containing dataset. It must contain subdirectories '
     '{train, test, validation}, each having many .npz files')
 _CACHE_DIR = flags.DEFINE_string(
-    'cache_dir', '~/data/tpugraphs/cache/tile',
+    'cache_dir', 'data/npz_all/cache/tile',
     'If given, dataset tensors will be cached here for faster loading.')
 
 
