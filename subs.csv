@@ -1,1 +1,2 @@
-public_lb,final_error_val_1, final_error_val_5, final_error_val_10
+public_lb,final_error_val_1, final_error_val_5, final_error_val_10, val_loss,  val_opa,    train_opa,   train_loss, description
+0.197,     0.1220,           0.058265,         0.0372854,           12.43475,    0.8693,    0.87660,     12.210511, "100 epoch tile predictions earlyJOin with 0,1,2,3,4 for layout predictions"

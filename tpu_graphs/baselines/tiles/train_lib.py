@@ -24,12 +24,15 @@ from typing import Callable, Any
 from absl import flags
 from absl import logging
 import tensorflow as tf
+from wandb.keras import WandbCallback
+import wandb
 import tensorflow_gnn as tfgnn
 import tensorflow_ranking as tfr
 from tpu_graphs.baselines.tiles import data
 from tpu_graphs.baselines.tiles import metrics
 from tpu_graphs.baselines.tiles import models
 from tpu_graphs.baselines.tiles import train_args
+from tpu_graphs.callbacks import InputLogCB
 import tqdm
 
 
@@ -133,19 +136,33 @@ def train(args: train_args.TrainArgs):
 	best_val_opa = -1
 	best_val_at_epoch = -1
 	train_curve = run_info['train_curve']    # For short.
+	input_cb = InputLogCB(train_ds)
+	wandb.init(project="tf_tpu_graphs", config=args._asdict())
+
 	for i in range(args.epochs):
+		wandb.log({"epoch": i})
 		old_alsologtostderr = flags.FLAGS.alsologtostderr
 		flags.FLAGS.alsologtostderr = True
 		history = model.fit(
-				train_ds, epochs=1, verbose=1, validation_data=valid_ds)
+				train_ds, epochs=1, verbose=1, validation_data=valid_ds, callbacks=[WandbCallback(
+					# verbose=1,
+					# validation_data=val_batch,
+					# validation_steps=1,
+					save_model=False,
+					save_graph=False,
+					log_weights=True,
+					# log_evaluation=True,
+					# log_gradients=True,
+					log_batch_frequency=25
+				), input_cb])
 		flags.FLAGS.alsologtostderr = old_alsologtostderr
-		print('history', history)
 		train_curve['epoch'].append(i)
 		train_curve['train_loss'].append(history.history['loss'][-1])
 		train_curve['train_opa'].append(history.history['opa_metric'][-1])
 		train_curve['val_loss'].append(history.history['val_loss'][-1])
 		train_curve['val_opa'].append(history.history['val_opa_metric'][-1])
 		val_opa = history.history['val_opa_metric'][-1]
+
 		if val_opa > best_val_opa:
 			best_val_opa = val_opa
 			best_val_at_epoch = i
@@ -153,6 +170,7 @@ def train(args: train_args.TrainArgs):
 			logging.info(' * [@%i] Validation (NEW BEST): %s', i, str(val_opa))
 			# Write model and train metrics (in `run_info`).
 			save_model(model, run_info, out_dir, args)
+
 		elif args.early_stop > 0 and i - best_val_at_epoch >= args.early_stop:
 			logging.info('[@%i] Best accuracy was attained at epoch %i. Stopping.',
 									 i, best_val_at_epoch)
@@ -186,7 +204,7 @@ def train(args: train_args.TrainArgs):
 			run_info['test_predictions'][module_id] = module_predictions
 
 	save_model(model, run_info, out_dir, args)
-
+	wandb.finish()
 
 def rank_config_indices(
 		test_ds: tf.data.Dataset,
