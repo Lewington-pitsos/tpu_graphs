@@ -32,6 +32,8 @@ _EVAL_EVERY = flags.DEFINE_integer(
 _LOSSES = flags.DEFINE_string(
     'losses', 'ListMLELoss:1,MSE:0.02',
     'Comma-separated list of "lossName:lossWeight", per `metrics.py`.')
+_SHUFFLE = flags.DEFINE_float(
+    'shuffle', True, 'Whether to shuffle training data.')
 _LEARNING_RATE = flags.DEFINE_float(
     'lr', 1e-3, 'Learning rate for Adam optimizer.')
 _CLIP_NORM = flags.DEFINE_float(
@@ -80,6 +82,7 @@ class TrainArgs(NamedTuple):
   batch_size: int
   configs: int
   early_stop: int
+  shuffle: bool
 
   # Optimization.
   losses: str
@@ -132,4 +135,5 @@ def get_args() -> TrainArgs:
       clip_norm=_CLIP_NORM.value, model=_MODEL.value,
       model_kwargs_json=_MODEL_KWARGS_JSON.value, test_mode=_TEST_MODE.value,
       out_dir=_OUTPUT_DIR.value, validate_batches=_VALIDATE_BATCHES.value,
+      shuffle=_SHUFFLE.value,
       results_csv=_get_results_csv_or_default(), run_id=_RUN_ID.value)

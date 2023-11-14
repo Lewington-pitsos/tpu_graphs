@@ -54,27 +54,32 @@ def _graph_and_label(graph: tfgnn.GraphTensor, batch_size=10, num_configs=2):
 
 
 def filter_long_graphs(cutoff, graph):
-	return len(graph.node_sets['op'].features['op']) < cutoff
+	glen = len(graph.node_sets['op'].features['op'])
+	return 15 < glen < cutoff
 
-def load_train_ds(dataset_partitions, num_configs, batch_size, attach_labels_fn,  filter_fn = None):
+def load_train_ds(
+		dataset_partitions,
+		num_configs,
+		batch_size,
+		attach_labels_fn,
+		shuffle,
+		filter_fn = None
+	):
+	d = dataset_partitions.train.get_graph_tensors_dataset(num_configs)
 
-	if filter_fn is None:
-		filter_fn = lambda x: True
+	if filter_fn is not None:
+		d = d.filter(filter_fn)
+
+	if shuffle:
+		d = d.shuffle(5000, reshuffle_each_iteration=True)
 
 	train_ds = (
-		dataset_partitions.train.get_graph_tensors_dataset(num_configs)
-		.filter(filter_fn)
-		.shuffle(5000, reshuffle_each_iteration=True)
-		.batch(batch_size, drop_remainder=True)
-		.map(tfgnn.GraphTensor.merge_batch_to_components)
-
-		)
+		d.batch(batch_size, drop_remainder=True)
+		.map(tfgnn.GraphTensor.merge_batch_to_components))
 
 	train_ds = train_ds.map(attach_labels_fn)
 
 	return train_ds
-
-
 
 # Used for validation. For training, data.py accepts `min_train_configs`.
 def _graph_has_enough_configs(graph: tfgnn.GraphTensor, num_configs=2):
@@ -134,11 +139,15 @@ def train(args: train_args.TrainArgs):
 
 	attach_labels_fn = functools.partial(
 		_graph_and_label, batch_size=batch_size, num_configs=num_configs)
-	train_ds = load_train_ds(dataset_partitions,  num_configs, batch_size, attach_labels_fn)
+	train_ds = load_train_ds(
+		dataset_partitions,
+		num_configs,
+		batch_size,
+		attach_labels_fn,
+		shuffle=args.shuffle,
+		filter_fn=functools.partial(filter_long_graphs, 55)
+	)
 
-	# functools.partial(filter_long_graphs, 15)
-
-	# Model.
 	model_class = getattr(models, args.model)
 	model_kwargs = json.loads(args.model_kwargs_json)
 	print(model_kwargs)
@@ -179,8 +188,21 @@ def train(args: train_args.TrainArgs):
 	wandb.init(project="tf_tpu_graphs", config=run_config)
 	input_cb = InputLogCB(train_ds)
 	batch_logger = BatchLossLogger()
+	easy_epochs = 15
+	hard_mode = False
 
 	for i in range(args.epochs):
+		if i >= easy_epochs and not hard_mode:
+			train_ds = load_train_ds(
+				dataset_partitions,
+				num_configs,
+				batch_size,
+				attach_labels_fn,
+				shuffle=args.shuffle,
+				filter_fn=None
+			)
+			hard_mode = True
+
 		wandb.log({"epoch": i})
 		old_alsologtostderr = flags.FLAGS.alsologtostderr
 		flags.FLAGS.alsologtostderr = True
