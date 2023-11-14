@@ -6,8 +6,8 @@ from PIL import Image
 def plot_outputs_vs_predictions(config_runtime, preds):
 	max_plot = 16
 	plt.figure(figsize=(10, 5))
-	plt.scatter(config_runtime[:max_plot].cpu().detach(), preds[:max_plot].cpu().detach(), c=range(preds[:max_plot].shape[0]), cmap='viridis', alpha=0.7)
-	plt.xlabel('Outputs')
+	plt.scatter(config_runtime[:max_plot], preds[:max_plot], c=range(preds[:max_plot].shape[0]), cmap='viridis', alpha=0.7)
+	plt.xlabel('Runtimes')
 	plt.ylabel('Predictions')
 	plt.grid()
 	plt.savefig('outputs_vs_predictions.png')
@@ -18,7 +18,7 @@ def plot_outputs_vs_predictions(config_runtime, preds):
 
 def plot_config(config_feat, name):
 	save_file = 'tmp.png'
-	matrix = config_feat[:8].numpy()
+	matrix = config_feat[:10]
 
 	normalized_matrix = (matrix - matrix.min(axis=0)) / (matrix.ptp(axis=0) + 1)
 

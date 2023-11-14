@@ -109,6 +109,7 @@ class CombinedLoss(tf.keras.losses.Loss):
     total_weight = sum([w for w, unused_loss in self._weighted_losses])
     self._weighted_losses = [(w / total_weight, loss)
                              for w, loss in self._weighted_losses]
+    print("weighted losses", self._weighted_losses)
 
   def call(self, y_true, y_pred):
     return tf.math.add_n([weight * loss(y_true, y_pred)
