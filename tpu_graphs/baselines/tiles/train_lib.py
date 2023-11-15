@@ -52,6 +52,16 @@ def graph_and_label(graph: tfgnn.GraphTensor, batch_size=10, num_configs=2):
 			graph.node_sets['config']['runtimes'], [batch_size, num_configs])
 	return graph, label
 
+def filter_graphs(graphs, graph):
+	name = graph.node_sets['g'].features['tile_id'][0]
+	graphs_tensor = tf.constant(graphs)
+
+	# Compare the name tensor to each element in the list
+	# This creates a tensor of boolean values
+	comparisons = tf.not_equal(graphs_tensor, name)
+
+	# Check if any comparison is True
+	return tf.reduce_all(comparisons)
 
 def filter_long_graphs(cutoff, graph):
 	glen = len(graph.node_sets['op'].features['op'])
@@ -90,10 +100,8 @@ def _graph_has_enough_configs(graph: tfgnn.GraphTensor, num_configs=2):
 def save_model(
 		model: tf.keras.Model, run_info: dict[str, Any], out_dir: str,
 		args: train_args.TrainArgs):
-	"""Writes `model` and `run_info` onto `out_dir`/*`args.compute_hash()`*."""
 	args_hash = args.compute_hash()
 
-	# Save run file.
 	out_run_file = os.path.join(out_dir, f'run_{args_hash}.jsonz')
 	bytes_io = io.BytesIO()
 	with gzip.open(bytes_io, 'wb') as fout:
@@ -102,7 +110,6 @@ def save_model(
 		fout.write(bytes_io.getvalue())
 	logging.info('wrote %s', out_run_file)
 
-	# Keras model.
 	out_model_file = os.path.join(out_dir, f'model_{args_hash}')
 	model.save(out_model_file)
 	logging.info('wrote %s', out_model_file)
@@ -115,50 +122,45 @@ def train(args: train_args.TrainArgs):
 	np.random.seed(seed)
 	tf.random.set_seed(seed)
 
-
-	"""Training loop. `train_args.py` contains description of arguments."""
 	out_dir = os.path.expanduser(args.out_dir)
 	if not tf.io.gfile.exists(out_dir):
 		tf.io.gfile.makedirs(out_dir)
 
-	# Will be written in out_dir.
 	run_info = dict(
-			train_curve=dict(
-					epoch=[], train_loss=[], train_opa=[], val_loss=[], val_opa=[]),
-			final_error=dict(),
-			args=args._asdict(),
+		train_curve=dict(
+				epoch=[], train_loss=[], train_opa=[], val_loss=[], val_opa=[]),
+		final_error=dict(),
+		args=args._asdict(),
 	)
 
-	# Input training data.
 	data_root_dir = os.path.expanduser(_DATA_ROOT.value)
 	num_configs = args.configs
+	batch_size = args.batch_size
 	dataset_partitions = data.get_npz_dataset(
 			data_root_dir, min_train_configs=num_configs,
 			cache_dir=os.path.expanduser(_CACHE_DIR.value))
-	batch_size = args.batch_size
 
-	attach_labels_fn = functools.partial(
-		graph_and_label, batch_size=batch_size, num_configs=num_configs)
+	attach_labels_fn = functools.partial(graph_and_label, batch_size=batch_size, num_configs=num_configs)
+
 	train_ds = load_train_ds(
 		dataset_partitions,
 		num_configs,
 		batch_size,
 		attach_labels_fn,
 		shuffle=args.shuffle,
-		filter_fn=None
+		# filter_fn=functools.partial(filter_graphs, ['tf2_bert_squad_dynamic_540a8383bbe6eb91'])
 	)
 
 	model_class = getattr(models, args.model)
 	model_kwargs = json.loads(args.model_kwargs_json)
-	print(model_kwargs)
+	print('model kwargs', model_kwargs)
 	num_ops = dataset_partitions.num_ops
 	model = model_class(num_configs, num_ops, **model_kwargs)
 
 	loss = metrics.CombinedLoss(metrics.parse_loss_str(args.losses))
-	opt = tf.keras.optimizers.Adam(
+	optimizer = tf.keras.optimizers.Adam(
 			learning_rate=args.learning_rate, clipnorm=args.clip_norm)
-
-	model.compile(loss=loss, optimizer=opt, metrics=[
+	model.compile(loss=loss, optimizer=optimizer, metrics=[
 		tfr.keras.metrics.OPAMetric(name='opa_metric'),
 	])
 

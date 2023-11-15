@@ -17,5 +17,10 @@ python tiles_train.py --model=EarlyJoinSAGE --epochs=5 --batch=1 --configs=10 --
 
 python tiles_train.py --model=EarlyJoinSAGE --epochs=3000 --model_kwargs_json='{"num_gnns": 7, "final_mlp_layers": 3, "hidden_dim": 256}'
 
+python tiles_train.py --model=EarlyJoinSAGE --epochs=5 --losses='MSE:1.0' --lr=1e-4 --shuffle=0
 
-python tiles_train.py --model=EarlyJoinSAGE --epochs=10 --losses='MSE:1.0' --lr=1e-4 --batch=1 --configs=1
+python tiles_train.py --model=EarlyJoinSAGE --epochs=3000 --losses='ListMLELoss:1,RMSE:0.08'
+
+
+
+python tiles_train.py --model=EarlyJoinSAGE --epochs=5 --losses='RMSE:1.0' --lr=1e-4 --shuffle=0
