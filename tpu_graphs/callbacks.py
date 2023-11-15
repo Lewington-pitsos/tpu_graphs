@@ -5,10 +5,11 @@ import keras
 from tpu_graphs.plot import plot_outputs_vs_predictions, plot_config
 
 class BatchLossLogger(tf.keras.callbacks.Callback):
-		def __init__(self):
+		def __init__(self, print_loss_at=-1):
 				super().__init__()
 				self.total_loss = 0.0
 				self.total_batches = 0
+				self.print_loss_at = print_loss_at
 
 		def on_epoch_begin(self, epoch, logs=None):
 				self.total_loss = 0.0
@@ -26,6 +27,28 @@ class BatchLossLogger(tf.keras.callbacks.Callback):
 						self.total_batches += 1
 
 						wandb.log({"raw_loss": batch_loss})
+
+						if self.print_loss_at != -1 and batch_loss > self.print_loss_at:
+								print(f"Batch loss for batch {batch} is super high: ", batch_loss)
+
+class ReLUCB(tf.keras.callbacks.Callback):
+		def __init__(self):
+				super(ReLUCB, self).__init__()
+				self.dead_relu_counts = []
+
+		def on_epoch_end(self, epoch, logs=None):
+				dead_relu_count = 0
+				for layer in self.model.layers:
+						# Check only for layers with ReLU activation
+						if hasattr(layer, 'activation') and layer.activation == tf.keras.activations.relu:
+								weights, biases = layer.get_weights()
+								# A ReLU neuron is considered dead if its output is 0 for all inputs
+								# This can be approximated by checking if the bias is negative and far from zero
+								dead_relu_count += np.sum(biases < -1e-2)
+
+				self.dead_relu_counts.append(dead_relu_count)
+				print(f'Epoch {epoch}: Number of dead ReLU neurons = {dead_relu_count}')
+				wandb.log({"dead_relu_count": dead_relu_count})
 
 class InputLogCB(keras.callbacks.Callback):
 	def __init__(self, dataloader, n_epochs=5):
@@ -64,8 +87,19 @@ class InputLogCB(keras.callbacks.Callback):
 
 	def on_epoch_begin(self, epoch, logs=None):
 		if epoch % self.n_epochs == 0:
-			with tf.GradientTape(persistent=False, watch_accessed_variables=False):
+			with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
 				outputs = self.model.forward(self.graph, self.batch_size)
+
+				# loss = self.model.loss(outputs, self.y, self.runtimes)
+
+				# print(loss)
+
+
+			# gradients = tape.gradient(loss, self.graph)
+			# print(gradients)
+
+			# raise ValueError()
+
 
 			plot_outputs_vs_predictions(self.runtimes, outputs[0])
 

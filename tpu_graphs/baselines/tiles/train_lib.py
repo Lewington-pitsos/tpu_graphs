@@ -32,7 +32,7 @@ from tpu_graphs.baselines.tiles import data
 from tpu_graphs.baselines.tiles import metrics
 from tpu_graphs.baselines.tiles import models
 from tpu_graphs.baselines.tiles import train_args
-from tpu_graphs.callbacks import InputLogCB, BatchLossLogger
+from tpu_graphs.callbacks import InputLogCB, BatchLossLogger, ReLUCB
 import tqdm
 import random
 import numpy as np
@@ -47,7 +47,7 @@ _CACHE_DIR = flags.DEFINE_string(
 		'If given, dataset tensors will be cached here for faster loading.')
 
 
-def _graph_and_label(graph: tfgnn.GraphTensor, batch_size=10, num_configs=2):
+def graph_and_label(graph: tfgnn.GraphTensor, batch_size=10, num_configs=2):
 	label = tf.reshape(
 			graph.node_sets['config']['runtimes'], [batch_size, num_configs])
 	return graph, label
@@ -138,14 +138,14 @@ def train(args: train_args.TrainArgs):
 	batch_size = args.batch_size
 
 	attach_labels_fn = functools.partial(
-		_graph_and_label, batch_size=batch_size, num_configs=num_configs)
+		graph_and_label, batch_size=batch_size, num_configs=num_configs)
 	train_ds = load_train_ds(
 		dataset_partitions,
 		num_configs,
 		batch_size,
 		attach_labels_fn,
 		shuffle=args.shuffle,
-		filter_fn=functools.partial(filter_long_graphs, 55)
+		filter_fn=None
 	)
 
 	model_class = getattr(models, args.model)
@@ -159,11 +159,11 @@ def train(args: train_args.TrainArgs):
 			learning_rate=args.learning_rate, clipnorm=args.clip_norm)
 
 	model.compile(loss=loss, optimizer=opt, metrics=[
-			tfr.keras.metrics.OPAMetric(name='opa_metric'),
+		tfr.keras.metrics.OPAMetric(name='opa_metric'),
 	])
 
 	print("train_ds: ", type(train_ds))
-	X, _ = next(iter(train_ds))
+	X, _ = next(iter(train_ds.take(1)))
 
 	with tf.GradientTape(persistent=False, watch_accessed_variables=False):
 		model(X)
@@ -187,22 +187,10 @@ def train(args: train_args.TrainArgs):
 	print("------------ number of parameters: ", run_config['model_parameter_count'])
 	wandb.init(project="tf_tpu_graphs", config=run_config)
 	input_cb = InputLogCB(train_ds)
-	batch_logger = BatchLossLogger()
-	easy_epochs = 15
-	hard_mode = False
+	# relu_cb = RelUCB()
+	batch_logger = BatchLossLogger(print_loss_at=1500)
 
 	for i in range(args.epochs):
-		if i >= easy_epochs and not hard_mode:
-			train_ds = load_train_ds(
-				dataset_partitions,
-				num_configs,
-				batch_size,
-				attach_labels_fn,
-				shuffle=args.shuffle,
-				filter_fn=None
-			)
-			hard_mode = True
-
 		wandb.log({"epoch": i})
 		old_alsologtostderr = flags.FLAGS.alsologtostderr
 		flags.FLAGS.alsologtostderr = True
@@ -246,32 +234,32 @@ def train(args: train_args.TrainArgs):
 	for v in model.trainable_variables:
 		v.assign(best_params[v.ref])
 
+	save_model(model, run_info, out_dir, args)
 
-	# with tf.device('/cpu:0'):
-	# 	# Run on full validation.
-	# 	run_info['final_error']['val'] = metrics.top_error_performance(
-	# 			dataset_partitions.validation.get_graph_tensors_dataset(), model.forward)
+	with tf.device('/cpu:0'):
+		# Run on full validation.
+		run_info['final_error']['val'] = metrics.top_error_performance(
+				dataset_partitions.validation.get_graph_tensors_dataset(), model.forward)
 
-	# # Run on test set.
-	# test_ds = dataset_partitions.test.get_graph_tensors_dataset()
-	# if args.test_mode == 'metrics':
-	# 	with tf.device('/cpu:0'):
-	# 		run_info['final_error']['test'] = metrics.top_error_performance(
-	# 				test_ds, model.forward)
-	# elif args.test_mode == 'predictions':
-	# 	module_ids, ranks = rank_config_indices(test_ds, model.forward)
+	# Run on test set.
+	test_ds = dataset_partitions.test.get_graph_tensors_dataset()
+	with tf.device('/cpu:0'):
+		if args.test_mode == 'metrics':
+				run_info['final_error']['test'] = metrics.top_error_performance(
+						test_ds, model.forward)
+		elif args.test_mode == 'predictions':
+			module_ids, ranks = rank_config_indices(test_ds, model.forward)
 
-	# 	write_least_runtimes_csv(args.results_csv, module_ids, ranks)
+			write_least_runtimes_csv(args.results_csv, module_ids, ranks)
 
-	# 	### Add test predictions into run_info file.
-	# 	run_info['test_predictions'] = {}
-	# 	module_ids = module_ids.numpy().tolist()
-	# 	predictions = ranks.numpy().tolist()
-	# 	for module_id, module_predictions in zip(module_ids, predictions):
-	# 		module_id = bytes(module_id).decode()
-	# 		run_info['test_predictions'][module_id] = module_predictions
+			### Add test predictions into run_info file.
+			run_info['test_predictions'] = {}
+			module_ids = module_ids.numpy().tolist()
+			predictions = ranks.numpy().tolist()
+			for module_id, module_predictions in zip(module_ids, predictions):
+				module_id = bytes(module_id).decode()
+				run_info['test_predictions'][module_id] = module_predictions
 
-	# save_model(model, run_info, out_dir, args)
 	wandb.finish()
 
 def rank_config_indices(

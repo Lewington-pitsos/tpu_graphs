@@ -33,7 +33,7 @@ _LOSSES = flags.DEFINE_string(
     'losses', 'ListMLELoss:1,MSE:0.02',
     'Comma-separated list of "lossName:lossWeight", per `metrics.py`.')
 _SHUFFLE = flags.DEFINE_float(
-    'shuffle', True, 'Whether to shuffle training data.')
+    'shuffle', 1, 'Whether to shuffle training data.')
 _LEARNING_RATE = flags.DEFINE_float(
     'lr', 1e-3, 'Learning rate for Adam optimizer.')
 _CLIP_NORM = flags.DEFINE_float(
@@ -82,7 +82,7 @@ class TrainArgs(NamedTuple):
   batch_size: int
   configs: int
   early_stop: int
-  shuffle: bool
+  shuffle: int
 
   # Optimization.
   losses: str
